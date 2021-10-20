@@ -20,7 +20,7 @@ class Job(models.Model):
 class Company(models.Model):
     name            = models.CharField(max_length=100)
     location        = models.TextField(max_length=5000)
-    salary          = models.DecimalField(max_digits=10, decimal_places=3)
+    salary          = models.DecimalField(max_digits=15, decimal_places=3)
     employee_number = models.IntegerField()
     description     = models.CharField(max_length=2000)
 
