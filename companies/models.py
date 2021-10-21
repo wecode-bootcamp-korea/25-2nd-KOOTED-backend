@@ -35,8 +35,9 @@ class CompanyImage(models.Model):
         db_table = 'company_images'
 
 class Tag(models.Model):
-    name = models.CharField(max_length=100)
-
+    name  = models.CharField(max_length=100)
+    color = models.CharField(max_length=45)
+    
     class Meta:
         db_table = 'tags'
 
