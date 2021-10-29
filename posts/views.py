@@ -17,17 +17,17 @@ class PostsView(View):
             offset       = request.GET.get('offset', 0)
             limit        = request.GET.get('offset', 20)
             sorting      = request.GET.get('sort', '-created_at')
-            job_group    = JobGroup.objects.filter(id=request.GET.get('job-group', 0))
-            job          = Job.objects.filter(id=request.GET.get('job', 0))
-            category_list= [{'id'       : job_group.id,
-                             'name'     : job_group.name,
-                             'image_url': job_group.image_url,
-                             'job_list' : [{'id'  : job.id,
-                                            'name' : job.name
-                                            } 
-                                            for job in job_group.job_set.all()]}
-                                            for job_group in JobGroup.objects.all()]
-
+            job_group    = JobGroup.objects.filter(id=request.GET.get('job-group', 1))
+            job          = Job.objects.filter(id=request.GET.get('job'))
+            category_list= JobGroup.objects.values()
+            job_group_list = [{'id' : job_group.id,
+                               'name' : job_group.name,
+                               'job_list' : [{'id' : job.id,
+                                              'name' : job.name} 
+                                              for job in job_group.job_set.all()]}
+                                              for job_group in JobGroup.objects.all()
+                                              ]
+            
             salary_list  = []
             user_filters = Q()
             post_filters = Q()
@@ -36,7 +36,6 @@ class PostsView(View):
                 post_filters.add(Q(job__job_group=job_group.first()) | Q(job=job.first()), post_filters.AND)
                 user_filters.add(Q(userworkingyear__job__job_group=job_group.first()) | Q(userworkingyear__job=job.first()), user_filters.AND)
                 jobs          = Job.objects.filter(job_group=job_group.first()) if job_group else Job.objects.filter(job_group=job.first().job_group).exclude(id=job.first().id)
-                category_list = list(jobs.values())
                 salary_list   = User.objects.filter(user_filters)\
                                             .annotate(working_year=F('userworkingyear__working_year__years'))\
                                             .values('working_year')\
@@ -45,17 +44,18 @@ class PostsView(View):
                                             .order_by('working_year')
 
             year         = int(request.GET.get('year', 0))
-            tag_list     = request.GET.getlist('tag')
+            tag_list     = None if not request.GET.get('tag') else request.GET.get('tag').split(' ')
 
             if tag_list:
-                post_filters.add(Q(company__companytag__tag__in=tag_list), post_filters.AND)
+                post_filters.add(Q(company__companytag__tag_id__in=tag_list), post_filters.AND)
 
             if year:
                 post_filters.add(Q(working_year__lte=year), post_filters.AND)
-
-            posts        = Post.objects.select_related('company', 'job__job_group')\
+            
+            category_info= {'job_group_name' : job_group.first().name, 'job_name' : job_group.first().job_set.first().name}
+            posts        = Post.objects.filter(post_filters)\
+                                       .select_related('company', 'job__job_group')\
                                        .prefetch_related('postimage_set')\
-                                       .filter(post_filters)\
                                        .annotate(count=Count('bookmark'), reward=F('recommender_reward') + F('applicant_reward'))\
                                        .order_by(sorting)[offset:offset+limit]
 
@@ -73,7 +73,7 @@ class PostsView(View):
                 'image_url'       : None if not post.postimage_set.first() else post.postimage_set.first().image_url,
             } for post in posts]
 
-            return JsonResponse({'category_list' : category_list, 'salary_list' : list(salary_list), 'result' : result}, status = 200)
+            return JsonResponse({'job_group_list' : job_group_list, 'category_list' : list(category_list), 'category_info' : category_info, 'salary_list' : list(salary_list), 'result' : result}, status = 200)
 
         except Post.DoesNotExist:
             return JsonResponse({'message' : 'POST_DOES_NOT_EXIST'}, status = 400)
@@ -86,7 +86,7 @@ class PostDetailView(View):
             headers= {'Content-Type': 'application/json; charset=utf-8', 'Authorization' : f'KakaoAK {REST_API}'}
             response = requests.get('https://dapi.kakao.com//v2/local/geo/coord2address.json?x={}&y={}'.format(location[1], location[0]), headers=headers).json()
             region = response['documents'][0]['address']['region_1depth_name'] + ' '+ response['documents'][0]['address']['region_2depth_name']
-            post   = Post.objects.filter(id=post_id).annotate(region=F('company__location')).first()
+            post   = Post.objects.filter(id=post_id).first()
             result = {
                 'id'                 : post.id,
                 'title'              : post.title,

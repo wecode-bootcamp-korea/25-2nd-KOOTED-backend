@@ -7,7 +7,11 @@ from django.views     import View
 from django.http      import JsonResponse
 from django.db        import transaction
 
+<<<<<<< HEAD
 from posts.models import Post
+=======
+from posts.models import Bookmark, Post
+>>>>>>> ffd0cfe (Add: posts_views)
 from .models      import Application, Career, Resume, Skill
 from users.models import User
 from kooted.utils import login_decorator
@@ -45,11 +49,20 @@ class ResumeView(View):
     @login_decorator
     def get(self, request, resume_id):
       resume = Resume.objects.filter(id=resume_id).first()
+<<<<<<< HEAD
+=======
+      post_id = request.GET.get('post_id')
+>>>>>>> ffd0cfe (Add: posts_views)
       user = request.user
       user_info = {
         'name' : user.name,
         'email' : user.email,
+<<<<<<< HEAD
         'mobile_number' : user.mobile_number
+=======
+        'mobile_number' : user.mobile_number,
+        'bookmark' : Bookmark.objects.filter(user=user, post_id=post_id).exists()
+>>>>>>> ffd0cfe (Add: posts_views)
       }
 
       if not resume:
